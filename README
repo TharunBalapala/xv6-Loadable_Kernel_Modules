@@ -46,3 +46,51 @@ You will need a RISC-V "newlib" tool chain from
 https://github.com/riscv/riscv-gnu-toolchain, and qemu compiled for
 riscv64-softmmu.  Once they are installed, and in your shell
 search path, you can run "make qemu".
+
+
+LOADABLE KERNEL MODULE DEMO
+============================
+
+This xv6 project includes a restricted runtime ELF64 RISC-V ET_REL loader and
+the `hello`, `sysmon`, `procmon`, and `klogger` modules. Module execution
+is supported only with one QEMU hart. Modules execute as privileged kernel code;
+they are not sandboxed.
+
+Build and boot the production module configuration:
+
+    make -B MODULES=1 CPUS=1 kernel/kernel fs.img
+    make MODULES=1 CPUS=1 qemu
+
+At the xv6 shell, try:
+
+    modctl load sysmon.o
+    modctl run sysmon
+    modctl load procmon.o
+    modctl run procmon
+    modctl load klogger.o
+    modctl run klogger add WARN example-entry
+    modctl run klogger show
+    modctl run klogger clear
+    modctl list
+    modctl unload sysmon
+    modctl unload procmon
+    modctl unload klogger
+
+The module objects are separate files installed in `fs.img`; they are not
+linked into `kernel/kernel`. `modctl` supports `load file.o`, `run name
+[args...]`, `list`, and `unload name`.
+
+To run the one-hart integration suite, build its test-only lifecycle fixtures
+and run the harness:
+
+    make -B MODULES=1 MODULE_TESTS=1 CPUS=1 kernel/kernel fs.img
+    python3 experiments/run_module_qemu_tests.py
+
+The host ELF validation suite is:
+
+    experiments/run_elfmod_tests.sh
+    HOST_SANITIZE=1 experiments/run_elfmod_tests.sh
+
+The loader does not support SMP, asynchronous callbacks/workers, dependencies,
+arbitrary kernel symbol imports, or untrusted modules. Use `CPUS=1` for every
+module-enabled build and demonstration.

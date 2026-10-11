@@ -49,6 +49,10 @@ static volatile uint module_online_harts;
 static uchar module_arena_used[MODULE_ARENA_PAGES];
 static uchar module_file[MODULE_FILE_MAX];
 static uchar module_staging[ELFMOD_MAX_IMAGE_SIZE];
+// Serialized by module_operation_lock to keep large ELF metadata off the
+// one-page kernel stack used by system calls.
+static struct elfmod_context module_context;
+static uint64 module_section_address_table[ELFMOD_MAX_SECTIONS];
 extern pagetable_t kernel_pagetable;
 
 extern struct proc proc[NPROC];
@@ -529,10 +533,9 @@ int
 module_load(char *path)
 {
   struct module_slot *slot;
-  struct elfmod_context ctx;
   struct elfmod_export init_export, command_export, exit_export;
   enum elfmod_error error = ELFMOD_OK;
-  uint64 section_addresses[ELFMOD_MAX_SECTIONS], file_length, rounded;
+  uint64 file_length, rounded;
   uint32 arena_pages;
   char name[MODULE_NAME_MAX + 1];
   int result = -1, map_result;
@@ -555,32 +558,37 @@ module_load(char *path)
     printk("module %s: cannot read object file\n", name);
     goto fail;
   }
-  if (elfmod_parse(&ctx, module_file, file_length, &error) < 0) {
+  if (elfmod_parse(&module_context, module_file, file_length, &error) < 0) {
     printk("module %s: ELF rejected: %s\n", name,
            (char *)elfmod_error_string(error));
     goto fail;
   }
-  if (elfmod_find_export(&ctx, "module_init", &init_export, &error) < 0 ||
-      elfmod_find_export(&ctx, "module_command", &command_export, &error) < 0 ||
-      elfmod_find_export(&ctx, "module_exit", &exit_export, &error) < 0) {
+  if (elfmod_find_export(&module_context, "module_init", &init_export, &error) <
+        0 ||
+      elfmod_find_export(&module_context, "module_command", &command_export,
+                         &error) < 0 ||
+      elfmod_find_export(&module_context, "module_exit", &exit_export, &error) <
+        0) {
     printk("module %s: required entry point missing\n", name);
     goto fail;
   }
-  if (ctx.staging_size == 0 || ctx.staging_size > sizeof(module_staging) ||
-      ctx.staging_size > ~(uint64)0 - (PGSIZE - 1))
+  if (module_context.staging_size == 0 ||
+      module_context.staging_size > sizeof(module_staging) ||
+      module_context.staging_size > ~(uint64)0 - (PGSIZE - 1))
     goto fail;
-  rounded = (ctx.staging_size + PGSIZE - 1) & ~(uint64)(PGSIZE - 1);
+  rounded = (module_context.staging_size + PGSIZE - 1) & ~(uint64)(PGSIZE - 1);
   arena_pages = (uint32)(rounded / PGSIZE);
   if (module_arena_reserve(slot, arena_pages) < 0 ||
-      module_section_addresses(&ctx, slot, section_addresses) < 0)
+      module_section_addresses(&module_context, slot,
+                               module_section_address_table) < 0)
     goto fail;
-  if (elfmod_relocate(&ctx, module_staging, sizeof(module_staging),
-                      section_addresses, 0, 0, &error) < 0) {
+  if (elfmod_relocate(&module_context, module_staging, sizeof(module_staging),
+                      module_section_address_table, 0, 0, &error) < 0) {
     printk("module %s: relocation rejected: %s\n", name,
            (char *)elfmod_error_string(error));
     goto fail;
   }
-  map_result = module_prepare_pages(&ctx, slot);
+  map_result = module_prepare_pages(&module_context, slot);
   if (map_result == -2) {
     module_set_quarantined(slot);
     printk("module %s: uncertain page state; memory quarantined\n", name);
@@ -590,12 +598,15 @@ module_load(char *path)
     goto fail;
 
   slot->command =
-    (module_command_fn)(section_addresses[command_export.section_index] +
+    (module_command_fn)(module_section_address_table[command_export
+                                                       .section_index] +
                         command_export.section_offset);
-  slot->exit = (module_exit_fn)(section_addresses[exit_export.section_index] +
-                                exit_export.section_offset);
-  init_entry = (module_init_fn)(section_addresses[init_export.section_index] +
-                                init_export.section_offset);
+  slot->exit =
+    (module_exit_fn)(module_section_address_table[exit_export.section_index] +
+                     exit_export.section_offset);
+  init_entry =
+    (module_init_fn)(module_section_address_table[init_export.section_index] +
+                     init_export.section_offset);
   if (init_entry(&api_v2) != 0) {
     printk("module %s: initialization failed\n", name);
     goto fail;

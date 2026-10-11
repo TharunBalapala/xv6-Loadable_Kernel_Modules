@@ -1,5 +1,39 @@
 # Dynamic Kernel Extensibility in xv6
 
+## Current implementation status (final readiness audit)
+
+This status supersedes the phase snapshots below wherever they describe
+features as proposed, deferred, or not implemented. Those passages record the
+state at the time of each earlier phase.
+
+- Runtime loading, initialization, command dispatch, listing, and restricted
+  unloading are implemented for the strict ELF64 RISC-V ET_REL subset. The
+  versioned interface in current source is `module_api_v2`; `hello`,
+  `sysmon`, `procmon`, and `klogger` are separate filesystem objects.
+- Modules require `MODULES=1` and one hart. Secondary harts are parked in
+  M-mode in that build. No SMP module execution or remote fence/shootdown is
+  supported. Module code is privileged and is not sandboxed.
+- Module code pages are mapped RX after the writable direct-map aliases are
+  removed; read-only data is R/NX, and mutable data/BSS is RW/NX. Permission
+  changes use local `sfence.vma` and `fence.i`. The kernel ELF linker's
+  RWX LOAD-segment warning describes the ELF load segment; runtime Sv39 PTEs
+  still map kernel text RX and allocator RAM RW/NX.
+- Unload is rejected when the module has an active command or dependencies;
+  new commands are rejected after the slot enters UNLOADING. The busytest
+  fixture checks those state transitions deterministically on one hart. It is
+  not a simultaneous SMP race stress test. Async callbacks, workers, and
+  interrupt registrations are not part of the API.
+- During this audit, a fresh QEMU run exposed kernel stack exhaustion while
+  loading a feature module. `module_load` had large per-call ELF metadata on
+  xv6's one-page kernel stack. The metadata is now static scratch storage
+  serialized by `module_operation_lock`; its measured function frame fell
+  from 2848 bytes to 192 bytes. The test-mode QEMU integration suite passed
+  after this correction.
+- Use the build and demonstration commands in the README. Host tests do not
+  establish SMP safety, module isolation, or compatibility with arbitrary ELF
+  objects. Audit each new object's section layout and relocation types.
+
+
 ## 1. Objective
 
 Design and implement a runtime kernel-module loading
