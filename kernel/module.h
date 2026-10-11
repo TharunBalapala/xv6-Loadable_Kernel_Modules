@@ -1,19 +1,19 @@
 #ifndef MODULE_H
 #define MODULE_H
 #include "types.h"
-#define MODULE_API_V2 2
-#define MODULE_CAP_PRINT       (1UL << 0)
-#define MODULE_CAP_SYSTEM     (1UL << 1)
-#define MODULE_CAP_PROCESSES  (1UL << 2)
-#define MODULE_CAP_LOG        (1UL << 3)
-#define MODULE_NAME_MAX 15
-#define MODULE_MAX_ARGS 6
-#define MODULE_ARG_MAX 64
-#define MODULE_PRINT_MAX 192
-#define MODULE_PROC_NAME_MAX 16
+#define MODULE_API_V2           2
+#define MODULE_CAP_PRINT        (1UL << 0)
+#define MODULE_CAP_SYSTEM       (1UL << 1)
+#define MODULE_CAP_PROCESSES    (1UL << 2)
+#define MODULE_CAP_LOG          (1UL << 3)
+#define MODULE_NAME_MAX         15
+#define MODULE_MAX_ARGS         6
+#define MODULE_ARG_MAX          64
+#define MODULE_PRINT_MAX        192
+#define MODULE_PROC_NAME_MAX    16
 #define MODULE_PROC_STATE_COUNT 6
-#define MODULE_LOG_CAPACITY 32
-#define MODULE_LOG_MESSAGE_MAX 64
+#define MODULE_LOG_CAPACITY     32
+#define MODULE_LOG_MESSAGE_MAX  64
 
 enum module_proc_state {
   MODULE_PROC_UNUSED = 0,
@@ -64,8 +64,8 @@ struct module_api_v2 {
   uint64 capabilities;
   int (*print)(const char *message);
   int (*system_snapshot)(struct module_system_stats *result);
-  int (*process_snapshot)(struct module_process_info *entries,
-                         uint32 capacity, uint32 *count);
+  int (*process_snapshot)(struct module_process_info *entries, uint32 capacity,
+                          uint32 *count);
   int (*log_append)(uint32 level, const char *message);
   int (*log_snapshot)(struct module_log_snapshot *result);
   int (*log_clear)(void);

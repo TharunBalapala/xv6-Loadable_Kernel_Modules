@@ -4,7 +4,8 @@
 static void
 usage(void)
 {
-  printf("usage: modctl load file.o | unload name | list | run name [args...]\n");
+  printf(
+    "usage: modctl load file.o | unload name | list | run name [args...]\n");
   exit(1);
 }
 
@@ -30,10 +31,9 @@ main(int argc, char **argv)
       printf("modctl: unload failed or module is busy\n");
     exit(result < 0);
   }
-  if (argc >= 3 && (strcmp(argv[1], "run") == 0 ||
-                    strcmp(argv[1], "call") == 0)) {
-    result = modcall(argv[2], argc - 3,
-                         (const char *const *)&argv[3]);
+  if (argc >= 3 &&
+      (strcmp(argv[1], "run") == 0 || strcmp(argv[1], "call") == 0)) {
+    result = modcall(argv[2], argc - 3, (const char *const *)&argv[3]);
     if (result < 0)
       printf("modctl: module unavailable or command failed\n");
     else

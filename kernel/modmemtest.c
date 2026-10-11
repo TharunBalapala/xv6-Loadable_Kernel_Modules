@@ -6,7 +6,7 @@
 
 extern pagetable_t kernel_pagetable;
 
-#define MODMEMTEST_VA (PHYSTOP + PGSIZE)
+#define MODMEMTEST_VA    (PHYSTOP + PGSIZE)
 #define MODMEMTEST_FLAGS (PTE_V | PTE_R | PTE_W | PTE_X | PTE_U)
 
 typedef int (*trusted_probe_fn)(void);
@@ -24,7 +24,7 @@ check_pte(pte_t *pte, uint64 pa, uint64 flags)
 void
 modmemtest(void)
 {
-  static const uint32 code[2] = { 0x02a00513, 0x00008067 };
+  static const uint32 code[2] = {0x02a00513, 0x00008067};
   char *page = kalloc();
   uint64 pa;
   pte_t *pte;
@@ -41,8 +41,7 @@ modmemtest(void)
   // Remove the writable identity alias before installing executable memory.
   *pte = 0;
   sfence_vma();
-  if (mappages(kernel_pagetable, MODMEMTEST_VA, PGSIZE, pa,
-               PTE_R | PTE_X) < 0)
+  if (mappages(kernel_pagetable, MODMEMTEST_VA, PGSIZE, pa, PTE_R | PTE_X) < 0)
     panic("modmemtest: map RX");
   sfence_vma();
   icache_fence();
@@ -93,5 +92,6 @@ modmemtest(void)
   if (((volatile uchar *)page)[16] != 0x5a)
     panic("modmemtest: reuse write");
   kfree(page);
-  printk("module memory selftest: alias removal, permissions, and reuse passed\n");
+  printk(
+    "module memory selftest: alias removal, permissions, and reuse passed\n");
 }

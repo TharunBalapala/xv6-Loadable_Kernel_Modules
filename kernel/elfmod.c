@@ -32,35 +32,35 @@ typedef char elfmod_s64_width_check[(sizeof(int64) == 8) ? 1 : -1];
 #define SHF_TLS        0x400
 #define SHF_COMPRESSED 0x800
 
-#define STB_LOCAL  0
-#define STB_GLOBAL 1
-#define STB_WEAK   2
-#define STT_NOTYPE 0
-#define STT_OBJECT 1
-#define STT_FUNC   2
-#define STT_SECTION 3
-#define STT_FILE   4
-#define SHN_UNDEF  0
+#define STB_LOCAL     0
+#define STB_GLOBAL    1
+#define STB_WEAK      2
+#define STT_NOTYPE    0
+#define STT_OBJECT    1
+#define STT_FUNC      2
+#define STT_SECTION   3
+#define STT_FILE      4
+#define SHN_UNDEF     0
 #define SHN_LORESERVE 0xff00
-#define SHN_ABS    0xfff1
+#define SHN_ABS       0xfff1
 
-#define R_RISCV_NONE          0
-#define R_RISCV_BRANCH        16
-#define R_RISCV_CALL_PLT      19
-#define R_RISCV_RVC_BRANCH    44
-#define R_RISCV_RVC_JUMP      45
-#define R_RISCV_PCREL_HI20    23
-#define R_RISCV_PCREL_LO12_I  24
-#define R_RISCV_PCREL_LO12_S  25
-#define R_RISCV_RELAX         51
+#define R_RISCV_NONE         0
+#define R_RISCV_BRANCH       16
+#define R_RISCV_CALL_PLT     19
+#define R_RISCV_RVC_BRANCH   44
+#define R_RISCV_RVC_JUMP     45
+#define R_RISCV_PCREL_HI20   23
+#define R_RISCV_PCREL_LO12_I 24
+#define R_RISCV_PCREL_LO12_S 25
+#define R_RISCV_RELAX        51
 
-#define ELF_HEADER_SIZE 64
+#define ELF_HEADER_SIZE  64
 #define ELF_SECTION_SIZE 64
-#define ELF_SYMBOL_SIZE 24
-#define ELF_RELA_SIZE 24
-#define ELFMOD_COOKIE 0x454c464d4f445631UL
-#define INT64_MAX_U 0x7fffffffffffffffUL
-#define INT64_MIN_MAG 0x8000000000000000UL
+#define ELF_SYMBOL_SIZE  24
+#define ELF_RELA_SIZE    24
+#define ELFMOD_COOKIE    0x454c464d4f445631UL
+#define INT64_MAX_U      0x7fffffffffffffffUL
+#define INT64_MIN_MAG    0x8000000000000000UL
 
 struct elfmod_rela {
   uint64 offset;
@@ -130,9 +130,7 @@ get16(const uchar *p)
 static uint32
 get32(const uchar *p)
 {
-  return (uint32)p[0] |
-         ((uint32)p[1] << 8) |
-         ((uint32)p[2] << 16) |
+  return (uint32)p[0] | ((uint32)p[1] << 8) | ((uint32)p[2] << 16) |
          ((uint32)p[3] << 24);
 }
 
@@ -242,9 +240,8 @@ read_uleb(const uchar *bytes, uint64 end, uint64 *cursor, uint32 *value)
 static int
 arch_name_compatible(const uchar *arch, uint64 length)
 {
-  static const char *const required[] = {
-    "m", "a", "f", "d", "c", "zicsr", "zifencei", "zmmul"
-  };
+  static const char *const required[] = {"m", "a",     "f",        "d",
+                                         "c", "zicsr", "zifencei", "zmmul"};
   uint32 found = 0;
   uint64 pos = 5;
   uint i;
@@ -307,8 +304,7 @@ validate_attributes(const struct elfmod_context *context, uint32 index)
   int have_stack = 0, have_arch = 0;
   const uchar *arch = 0;
 
-  if (length < 12 || bytes[0] != 'A' ||
-      get32(bytes + 1) != length - 1)
+  if (length < 12 || bytes[0] != 'A' || get32(bytes + 1) != length - 1)
     return -1;
   pos = 5;
   while (pos < length && bytes[pos] != 0)
@@ -336,8 +332,8 @@ validate_attributes(const struct elfmod_context *context, uint32 index)
     if (read_uleb(bytes, subsection_end, &pos, &tag) < 0)
       return -1;
     if (tag == 4) { /* Tag_RISCV_stack_align */
-      if (read_uleb(bytes, subsection_end, &pos, &value) < 0 ||
-          have_stack || value != 16)
+      if (read_uleb(bytes, subsection_end, &pos, &value) < 0 || have_stack ||
+          value != 16)
         return -1;
       have_stack = 1;
     } else if (tag == 5) { /* Tag_RISCV_arch */
@@ -354,9 +350,8 @@ validate_attributes(const struct elfmod_context *context, uint32 index)
       return -1;
     }
   }
-  if (pos != subsection_end || subsection_end != vendor_end ||
-      !have_stack || !have_arch ||
-      !arch_name_compatible(arch, arch_length))
+  if (pos != subsection_end || subsection_end != vendor_end || !have_stack ||
+      !have_arch || !arch_name_compatible(arch, arch_length))
     return -1;
   return 0;
 }
@@ -417,8 +412,7 @@ validate_section_shape(struct elfmod_context *context, uint32 index,
                        section->size)) {
     return set_error(error, ELFMOD_E_BOUNDS);
   }
-  if (section->alignment > 1 &&
-      section->file_offset % section->alignment != 0)
+  if (section->alignment > 1 && section->file_offset % section->alignment != 0)
     return set_error(error, ELFMOD_E_ALIGNMENT);
 
   allocated = (section->flags & SHF_ALLOC) != 0;
@@ -428,15 +422,15 @@ validate_section_shape(struct elfmod_context *context, uint32 index,
   switch (section->type) {
   case SHT_NULL:
     if (index != 0 || section->name_offset != 0 || section->flags != 0 ||
-        section->file_offset != 0 || section->size != 0 ||
-        section->link != 0 || section->info != 0 ||
-        section->alignment != 0 || section->entry_size != 0)
+        section->file_offset != 0 || section->size != 0 || section->link != 0 ||
+        section->info != 0 || section->alignment != 0 ||
+        section->entry_size != 0)
       return set_error(error, ELFMOD_E_SECTION);
     break;
   case SHT_PROGBITS:
     if (allocated) {
-      allowed_flags = SHF_WRITE | SHF_ALLOC | SHF_EXECINSTR |
-                      SHF_MERGE | SHF_STRINGS;
+      allowed_flags =
+        SHF_WRITE | SHF_ALLOC | SHF_EXECINSTR | SHF_MERGE | SHF_STRINGS;
       if ((section->flags & ~allowed_flags) != 0 ||
           (section->flags & SHF_ALLOC) == 0)
         return set_error(error, ELFMOD_E_UNSUPPORTED_SECTION);
@@ -458,18 +452,18 @@ validate_section_shape(struct elfmod_context *context, uint32 index,
           context->file[section->file_offset + section->size - 1] != 0)
         return set_error(error, ELFMOD_E_SECTION);
       section->allocated = 1;
-      section->perm_class = (section->flags & SHF_EXECINSTR)
-                              ? ELFMOD_PERM_TEXT
-                              : ((section->flags & SHF_WRITE)
-                                   ? ELFMOD_PERM_DATA
-                                   : ELFMOD_PERM_READONLY);
+      section->perm_class =
+        (section->flags & SHF_EXECINSTR)
+          ? ELFMOD_PERM_TEXT
+          : ((section->flags & SHF_WRITE) ? ELFMOD_PERM_DATA
+                                          : ELFMOD_PERM_READONLY);
     } else {
       if ((section->flags & ~(SHF_MERGE | SHF_STRINGS)) != 0)
         return set_error(error, ELFMOD_E_UNSUPPORTED_SECTION);
-      if ((!name_is(context, context->section_name_index,
-                    section->name_offset, ".comment") &&
-           !name_is(context, context->section_name_index,
-                    section->name_offset, ".note.GNU-stack")) ||
+      if ((!name_is(context, context->section_name_index, section->name_offset,
+                    ".comment") &&
+           !name_is(context, context->section_name_index, section->name_offset,
+                    ".note.GNU-stack")) ||
           section->link != 0 || section->info != 0 ||
           section->entry_size != ((section->flags & SHF_MERGE) ? 1 : 0) ||
           ((section->flags & SHF_STRINGS) &&
@@ -483,8 +477,7 @@ validate_section_shape(struct elfmod_context *context, uint32 index,
     break;
   case SHT_NOBITS:
     if (!allocated || section->flags != (SHF_ALLOC | SHF_WRITE) ||
-        section->link != 0 || section->info != 0 ||
-        section->entry_size != 0)
+        section->link != 0 || section->info != 0 || section->entry_size != 0)
       return set_error(error, ELFMOD_E_UNSUPPORTED_SECTION);
     section->allocated = 1;
     section->perm_class = ELFMOD_PERM_DATA;
@@ -515,8 +508,8 @@ validate_section_shape(struct elfmod_context *context, uint32 index,
         section->entry_size != ELF_RELA_SIZE ||
         section->size % ELF_RELA_SIZE != 0 ||
         section->link >= context->section_count ||
-        section->info >= context->section_count ||
-        section->alignment < 8 || section->file_offset % 8 != 0)
+        section->info >= context->section_count || section->alignment < 8 ||
+        section->file_offset % 8 != 0)
       return set_error(error, ELFMOD_E_SECTION);
     entries = section->size / ELF_RELA_SIZE;
     if (entries > ELFMOD_MAX_RELOCATIONS ||
@@ -536,8 +529,7 @@ validate_section_shape(struct elfmod_context *context, uint32 index,
 }
 
 static int
-layout_alloc_sections(struct elfmod_context *context,
-                      enum elfmod_error *error)
+layout_alloc_sections(struct elfmod_context *context, enum elfmod_error *error)
 {
   uint64 cursor = 0;
   uint64 class_start;
@@ -640,7 +632,8 @@ validate_sections(struct elfmod_context *context, enum elfmod_error *error)
         (strings->size == 0 ||
          context->file[strings->file_offset + strings->size - 1] != 0))
       return set_error(error, i == context->symbol_string_index
-                                 ? ELFMOD_E_SYMBOL : ELFMOD_E_SECTION);
+                                ? ELFMOD_E_SYMBOL
+                                : ELFMOD_E_SECTION);
   }
 
   for (i = 1; i < context->section_count; i++) {
@@ -667,8 +660,8 @@ static int validate_symbols(struct elfmod_context *, enum elfmod_error *);
 static int validate_relocations(struct elfmod_context *, enum elfmod_error *);
 
 int
-elfmod_parse(struct elfmod_context *context, const void *file,
-             uint64 file_size, enum elfmod_error *error)
+elfmod_parse(struct elfmod_context *context, const void *file, uint64 file_size,
+             enum elfmod_error *error)
 {
   const uchar *bytes = (const uchar *)file;
   uint64 section_table_size;
@@ -693,9 +686,8 @@ elfmod_parse(struct elfmod_context *context, const void *file,
   context->file = bytes;
   context->file_size = file_size;
 
-  if (bytes[0] != 0x7f || bytes[1] != 'E' ||
-      bytes[2] != 'L' || bytes[3] != 'F' ||
-      bytes[4] != ELFCLASS64 || bytes[5] != ELFDATA2LSB ||
+  if (bytes[0] != 0x7f || bytes[1] != 'E' || bytes[2] != 'L' ||
+      bytes[3] != 'F' || bytes[4] != ELFCLASS64 || bytes[5] != ELFDATA2LSB ||
       bytes[6] != EV_CURRENT || bytes[7] != 0 || bytes[8] != 0)
     return set_error(error, ELFMOD_E_HEADER);
   {
@@ -718,10 +710,8 @@ elfmod_parse(struct elfmod_context *context, const void *file,
   section_count = get16(bytes + 60);
   section_name_index = get16(bytes + 62);
   if (section_count == 0 || section_count == 0xffff ||
-      section_count > ELFMOD_MAX_SECTIONS ||
-      section_name_index == 0xffff ||
-      section_name_index >= section_count ||
-      section_table_offset % 8 != 0 ||
+      section_count > ELFMOD_MAX_SECTIONS || section_name_index == 0xffff ||
+      section_name_index >= section_count || section_table_offset % 8 != 0 ||
       mul_u64(section_count, ELF_SECTION_SIZE, &section_table_size) < 0 ||
       !range_ok(file_size, section_table_offset, section_table_size))
     return set_error(error, ELFMOD_E_BOUNDS);
@@ -784,8 +774,7 @@ symbol_binding(const struct elfmod_symbol_record *symbol)
 }
 
 static int
-validate_symbols(struct elfmod_context *context,
-                 enum elfmod_error *error)
+validate_symbols(struct elfmod_context *context, enum elfmod_error *error)
 {
   struct elfmod_symbol_record symbol;
   uint32 i;
@@ -803,8 +792,8 @@ validate_symbols(struct elfmod_context *context,
     uint8 type, binding;
 
     if (read_symbol(context, i, &symbol) < 0 ||
-        name_at(context, context->symbol_string_index,
-                symbol.name_offset, &name, &name_length) < 0)
+        name_at(context, context->symbol_string_index, symbol.name_offset,
+                &name, &name_length) < 0)
       return set_error(error, ELFMOD_E_SYMBOL);
     type = symbol_type(&symbol);
     binding = symbol_binding(&symbol);
@@ -815,23 +804,22 @@ validate_symbols(struct elfmod_context *context,
       return set_error(error, ELFMOD_E_SYMBOL);
 
     if (i == 0) {
-      if (symbol.name_offset != 0 || symbol.info != 0 ||
-          symbol.other != 0 || symbol.section_index != SHN_UNDEF ||
-          symbol.value != 0 || symbol.size != 0 || name_length != 0)
+      if (symbol.name_offset != 0 || symbol.info != 0 || symbol.other != 0 ||
+          symbol.section_index != SHN_UNDEF || symbol.value != 0 ||
+          symbol.size != 0 || name_length != 0)
         return set_error(error, ELFMOD_E_SYMBOL);
       continue;
     }
 
     if (symbol.section_index == SHN_UNDEF) {
-      if (binding != STB_GLOBAL ||
-          (type != STT_FUNC && type != STT_NOTYPE) ||
+      if (binding != STB_GLOBAL || (type != STT_FUNC && type != STT_NOTYPE) ||
           name_length == 0 || symbol.value != 0 || symbol.size != 0)
         return set_error(error, ELFMOD_E_SYMBOL);
       continue;
     }
     if (symbol.section_index == SHN_ABS) {
-      if (type != STT_FILE || binding != STB_LOCAL ||
-          name_length == 0 || symbol.value != 0 || symbol.size != 0)
+      if (type != STT_FILE || binding != STB_LOCAL || name_length == 0 ||
+          symbol.value != 0 || symbol.size != 0)
         return set_error(error, ELFMOD_E_SYMBOL);
       continue;
     }
@@ -851,16 +839,14 @@ validate_symbols(struct elfmod_context *context,
             symbol.value > section->size)
           return set_error(error, ELFMOD_E_SYMBOL);
       } else if (type == STT_FUNC) {
-        if (!section->allocated ||
-            (section->flags & SHF_EXECINSTR) == 0 ||
+        if (!section->allocated || (section->flags & SHF_EXECINSTR) == 0 ||
             symbol.value > section->size ||
             symbol.size > section->size - symbol.value ||
             (symbol.size != 0 && symbol.value == section->size) ||
             (symbol.value & 1) != 0)
           return set_error(error, ELFMOD_E_SYMBOL);
       } else if (type == STT_OBJECT) {
-        if (!section->allocated ||
-            (section->flags & SHF_EXECINSTR) != 0 ||
+        if (!section->allocated || (section->flags & SHF_EXECINSTR) != 0 ||
             symbol.value > section->size ||
             symbol.size > section->size - symbol.value)
           return set_error(error, ELFMOD_E_SYMBOL);
@@ -885,8 +871,7 @@ read_relocation(const struct elfmod_context *context, uint32 section_index,
   if (section->type != SHT_RELA)
     return -1;
   count = section->size / ELF_RELA_SIZE;
-  if (ordinal >= count ||
-      mul_u64(ordinal, ELF_RELA_SIZE, &delta) < 0 ||
+  if (ordinal >= count || mul_u64(ordinal, ELF_RELA_SIZE, &delta) < 0 ||
       add_u64(section->file_offset, delta, &offset) < 0 ||
       !range_ok(context->file_size, offset, ELF_RELA_SIZE))
     return -1;
@@ -908,8 +893,7 @@ read_instruction(const struct elfmod_context *context, uint32 target_index,
   if (target_index >= context->section_count)
     return -1;
   target = &context->sections[target_index];
-  if (target->type != SHT_PROGBITS ||
-      !(target->flags & SHF_EXECINSTR) ||
+  if (target->type != SHT_PROGBITS || !(target->flags & SHF_EXECINSTR) ||
       !range_ok(target->size, offset, 4))
     return -1;
   if (staging) {
@@ -936,8 +920,7 @@ read_halfword(const struct elfmod_context *context, uint32 target_index,
   if (target_index >= context->section_count)
     return -1;
   target = &context->sections[target_index];
-  if (target->type != SHT_PROGBITS ||
-      !(target->flags & SHF_EXECINSTR) ||
+  if (target->type != SHT_PROGBITS || !(target->flags & SHF_EXECINSTR) ||
       !range_ok(target->size, offset, 2))
     return -1;
   if (staging) {
@@ -955,11 +938,9 @@ read_halfword(const struct elfmod_context *context, uint32 target_index,
 }
 
 static int
-find_hi_for_anchor(const struct elfmod_context *context,
-                   uint32 target_index,
+find_hi_for_anchor(const struct elfmod_context *context, uint32 target_index,
                    const struct elfmod_symbol_record *anchor,
-                   struct elfmod_rela *result,
-                   uint32 *result_section)
+                   struct elfmod_rela *result, uint32 *result_section)
 {
   struct elfmod_rela candidate;
   uint32 i, j, matches = 0;
@@ -985,9 +966,8 @@ find_hi_for_anchor(const struct elfmod_context *context,
 }
 
 static int
-count_lows_for_hi(const struct elfmod_context *context,
-                  uint32 target_index, const struct elfmod_rela *hi,
-                  uint32 *count)
+count_lows_for_hi(const struct elfmod_context *context, uint32 target_index,
+                  const struct elfmod_rela *hi, uint32 *count)
 {
   struct elfmod_rela low, found_hi;
   struct elfmod_symbol_record anchor;
@@ -1000,18 +980,16 @@ count_lows_for_hi(const struct elfmod_context *context,
     for (j = 0; j < relsec->size / ELF_RELA_SIZE; j++) {
       if (read_relocation(context, i, j, &low) < 0)
         return -1;
-      if (low.type != R_RISCV_PCREL_LO12_I &&
-          low.type != R_RISCV_PCREL_LO12_S)
+      if (low.type != R_RISCV_PCREL_LO12_I && low.type != R_RISCV_PCREL_LO12_S)
         continue;
       if (read_symbol(context, low.symbol, &anchor) < 0 ||
           anchor.section_index != target_index ||
-          symbol_type(&anchor) != STT_NOTYPE ||
-          anchor.value != hi->offset || low.addend != 0)
+          symbol_type(&anchor) != STT_NOTYPE || anchor.value != hi->offset ||
+          low.addend != 0)
         continue;
-      if (find_hi_for_anchor(context, target_index, &anchor,
-                             &found_hi, &hi_section) == 0 &&
-          found_hi.offset == hi->offset &&
-          found_hi.symbol == hi->symbol)
+      if (find_hi_for_anchor(context, target_index, &anchor, &found_hi,
+                             &hi_section) == 0 &&
+          found_hi.offset == hi->offset && found_hi.symbol == hi->symbol)
         total++;
     }
   }
@@ -1021,8 +999,7 @@ count_lows_for_hi(const struct elfmod_context *context,
 
 static int
 validate_hi_instruction(const struct elfmod_context *context,
-                        uint32 target_index, uint64 offset,
-                        uint32 *rd)
+                        uint32 target_index, uint64 offset, uint32 *rd)
 {
   uint32 instruction;
 
@@ -1036,8 +1013,8 @@ validate_hi_instruction(const struct elfmod_context *context,
 
 static int
 validate_lo_instruction(const struct elfmod_context *context,
-                        uint32 target_index, uint64 offset,
-                        uint32 type, uint32 hi_rd)
+                        uint32 target_index, uint64 offset, uint32 type,
+                        uint32 hi_rd)
 {
   uint32 instruction, opcode, funct3, rs1;
 
@@ -1075,10 +1052,8 @@ validate_call_instructions(const struct elfmod_context *context,
       (auipc & 0x7f) != 0x17)
     return -1;
   rd = (auipc >> 7) & 0x1f;
-  if (rd != 1 || (jalr & 0x7f) != 0x67 ||
-      ((jalr >> 12) & 7) != 0 ||
-      ((jalr >> 15) & 0x1f) != rd ||
-      ((jalr >> 7) & 0x1f) != 1)
+  if (rd != 1 || (jalr & 0x7f) != 0x67 || ((jalr >> 12) & 7) != 0 ||
+      ((jalr >> 15) & 0x1f) != rd || ((jalr >> 7) & 0x1f) != 1)
     return -1;
   return 0;
 }
@@ -1090,19 +1065,17 @@ find_hi_for_low(const struct elfmod_context *context, uint32 target_index,
 {
   struct elfmod_symbol_record anchor;
 
-  if (low->addend != 0 ||
-      read_symbol(context, low->symbol, &anchor) < 0 ||
+  if (low->addend != 0 || read_symbol(context, low->symbol, &anchor) < 0 ||
       anchor.section_index != target_index ||
       symbol_type(&anchor) != STT_NOTYPE ||
       symbol_binding(&anchor) != STB_LOCAL)
     return -1;
-  return find_hi_for_anchor(context, target_index, &anchor,
-                            high, high_section);
+  return find_hi_for_anchor(context, target_index, &anchor, high, high_section);
 }
 
 static int
-symbol_is_supported_relocation_target(
-    const struct elfmod_context *context, uint32 symbol_index, int is_call)
+symbol_is_supported_relocation_target(const struct elfmod_context *context,
+                                      uint32 symbol_index, int is_call)
 {
   struct elfmod_symbol_record symbol;
   const struct elfmod_section *section;
@@ -1113,17 +1086,20 @@ symbol_is_supported_relocation_target(
   type = symbol_type(&symbol);
   if (symbol.section_index == SHN_UNDEF)
     return symbol_binding(&symbol) == STB_GLOBAL &&
-           (type == STT_FUNC || type == STT_NOTYPE) ? 0 : -1;
+               (type == STT_FUNC || type == STT_NOTYPE)
+             ? 0
+             : -1;
   if (symbol.section_index >= context->section_count)
     return -1;
   section = &context->sections[symbol.section_index];
   if (!section->allocated)
     return -1;
   if (is_call)
-    return type == STT_FUNC &&
-           (section->flags & SHF_EXECINSTR) != 0 ? 0 : -1;
-  return type == STT_FUNC || type == STT_OBJECT ||
-         type == STT_NOTYPE || type == STT_SECTION ? 0 : -1;
+    return type == STT_FUNC && (section->flags & SHF_EXECINSTR) != 0 ? 0 : -1;
+  return type == STT_FUNC || type == STT_OBJECT || type == STT_NOTYPE ||
+             type == STT_SECTION
+           ? 0
+           : -1;
 }
 
 static int
@@ -1140,8 +1116,7 @@ count_primary_at(const struct elfmod_context *context, uint32 target_index,
     for (j = 0; j < relsec->size / ELF_RELA_SIZE; j++) {
       if (read_relocation(context, i, j, &relocation) < 0)
         return -1;
-      if (relocation.offset == offset &&
-          relocation.type != R_RISCV_NONE &&
+      if (relocation.offset == offset && relocation.type != R_RISCV_NONE &&
           relocation.type != R_RISCV_RELAX)
         count++;
     }
@@ -1164,8 +1139,7 @@ find_primary_at(const struct elfmod_context *context, uint32 target_index,
     for (j = 0; j < relsec->size / ELF_RELA_SIZE; j++) {
       if (read_relocation(context, i, j, &relocation) < 0)
         return -1;
-      if (relocation.offset == offset &&
-          relocation.type != R_RISCV_NONE &&
+      if (relocation.offset == offset && relocation.type != R_RISCV_NONE &&
           relocation.type != R_RISCV_RELAX) {
         *primary = relocation;
         count++;
@@ -1189,8 +1163,7 @@ count_relax_at(const struct elfmod_context *context, uint32 target_index,
     for (j = 0; j < relsec->size / ELF_RELA_SIZE; j++) {
       if (read_relocation(context, i, j, &relocation) < 0)
         return -1;
-      if (relocation.offset == offset &&
-          relocation.type == R_RISCV_RELAX)
+      if (relocation.offset == offset && relocation.type == R_RISCV_RELAX)
         count++;
     }
   }
@@ -1233,8 +1206,8 @@ validate_branch_instruction(const struct elfmod_context *context,
         (instruction & 0x7f) != 0x63)
       return -1;
     funct3 = (instruction >> 12) & 7;
-    return (funct3 == 0 || funct3 == 1 ||
-            (funct3 >= 4 && funct3 <= 7)) ? 0 : -1;
+    return (funct3 == 0 || funct3 == 1 || (funct3 >= 4 && funct3 <= 7)) ? 0
+                                                                        : -1;
   }
   if (read_halfword(context, target_index, offset, 0, &compressed) < 0 ||
       (compressed & 3) != 1)
@@ -1248,8 +1221,7 @@ validate_branch_instruction(const struct elfmod_context *context,
 }
 
 static int
-validate_relocations(struct elfmod_context *context,
-                     enum elfmod_error *error)
+validate_relocations(struct elfmod_context *context, enum elfmod_error *error)
 {
   struct elfmod_rela relocation, high;
   struct elfmod_symbol_record anchor;
@@ -1312,8 +1284,7 @@ validate_relocations(struct elfmod_context *context,
           return set_error(error, ELFMOD_E_RELOCATION);
         continue;
       }
-      if (target->type != SHT_PROGBITS ||
-          !(target->flags & SHF_ALLOC) ||
+      if (target->type != SHT_PROGBITS || !(target->flags & SHF_ALLOC) ||
           !(target->flags & SHF_EXECINSTR))
         return set_error(error, ELFMOD_E_RELOCATION);
       if ((relocation.offset & 1) != 0)
@@ -1325,42 +1296,40 @@ validate_relocations(struct elfmod_context *context,
 
       if (relocation.type == R_RISCV_PCREL_HI20) {
         uint32 low_count;
-        if (symbol_is_supported_relocation_target(
-              context, relocation.symbol, 0) < 0 ||
-            validate_hi_instruction(context, target_index,
-                                    relocation.offset, &rd) < 0 ||
-            count_lows_for_hi(context, target_index, &relocation,
-                              &low_count) < 0 ||
+        if (symbol_is_supported_relocation_target(context, relocation.symbol,
+                                                  0) < 0 ||
+            validate_hi_instruction(context, target_index, relocation.offset,
+                                    &rd) < 0 ||
+            count_lows_for_hi(context, target_index, &relocation, &low_count) <
+              0 ||
             low_count == 0)
           return set_error(error, ELFMOD_E_PAIR);
       } else if (relocation.type == R_RISCV_PCREL_LO12_I ||
                  relocation.type == R_RISCV_PCREL_LO12_S) {
-        if (find_hi_for_low(context, target_index, &relocation,
-                            &high, &high_section) < 0 ||
+        if (find_hi_for_low(context, target_index, &relocation, &high,
+                            &high_section) < 0 ||
             read_symbol(context, relocation.symbol, &anchor) < 0 ||
-            symbol_is_supported_relocation_target(
-              context, high.symbol, 0) < 0 ||
-            validate_hi_instruction(context, target_index,
-                                    high.offset, &rd) < 0 ||
-            validate_lo_instruction(context, target_index,
-                                    relocation.offset, relocation.type,
-                                    rd) < 0)
+            symbol_is_supported_relocation_target(context, high.symbol, 0) <
+              0 ||
+            validate_hi_instruction(context, target_index, high.offset, &rd) <
+              0 ||
+            validate_lo_instruction(context, target_index, relocation.offset,
+                                    relocation.type, rd) < 0)
           return set_error(error, ELFMOD_E_PAIR);
       } else if (relocation.type == R_RISCV_CALL_PLT) {
-        if (symbol_is_supported_relocation_target(
-              context, relocation.symbol, 1) < 0 ||
+        if (symbol_is_supported_relocation_target(context, relocation.symbol,
+                                                  1) < 0 ||
             validate_call_instructions(context, target_index,
                                        relocation.offset) < 0)
           return set_error(error, ELFMOD_E_INSTRUCTION);
       } else if (relocation.type == R_RISCV_BRANCH ||
                  relocation.type == R_RISCV_RVC_BRANCH ||
                  relocation.type == R_RISCV_RVC_JUMP) {
-        if (validate_branch_target_symbol(context, target_index,
-                                          &relocation) < 0)
+        if (validate_branch_target_symbol(context, target_index, &relocation) <
+            0)
           return set_error(error, ELFMOD_E_PAIR);
         if (validate_branch_instruction(context, target_index,
-                                        relocation.offset,
-                                        relocation.type) < 0)
+                                        relocation.offset, relocation.type) < 0)
           return set_error(error, ELFMOD_E_INSTRUCTION);
       }
     }
@@ -1452,9 +1421,10 @@ resolve_symbol_value(const struct elfmod_context *context, uint32 index,
     return -1;
   if (symbol.section_index == SHN_UNDEF) {
     if (resolver == 0 ||
-        name_at(context, context->symbol_string_index,
-                symbol.name_offset, &name, 0) < 0 ||
-        resolver(opaque, (const char *)name, symbol_type(&symbol), value) != 1 ||
+        name_at(context, context->symbol_string_index, symbol.name_offset,
+                &name, 0) < 0 ||
+        resolver(opaque, (const char *)name, symbol_type(&symbol), value) !=
+          1 ||
         *value == 0)
       return -1;
     return 0;
@@ -1470,9 +1440,8 @@ resolve_symbol_value(const struct elfmod_context *context, uint32 index,
 
 static int
 relocation_target_in_section(
-    const struct elfmod_context *context, uint32 symbol_index,
-    uint64 target, const uint64 section_addresses[ELFMOD_MAX_SECTIONS],
-    int is_call)
+  const struct elfmod_context *context, uint32 symbol_index, uint64 target,
+  const uint64 section_addresses[ELFMOD_MAX_SECTIONS], int is_call)
 {
   struct elfmod_symbol_record symbol;
   const struct elfmod_section *section;
@@ -1489,26 +1458,25 @@ relocation_target_in_section(
       (is_call && !(section->flags & SHF_EXECINSTR)))
     return -1;
   base = section_addresses[symbol.section_index];
-  if (add_u64(base, section->size, &end) < 0 ||
-      target < base || target > end ||
+  if (add_u64(base, section->size, &end) < 0 || target < base || target > end ||
       (is_call && target == end))
     return -1;
   return 0;
 }
 
 static int
-get_hi_target_difference(
-    const struct elfmod_context *context, uint32 target_index,
-    const struct elfmod_rela *high,
-    const uint64 section_addresses[ELFMOD_MAX_SECTIONS],
-    elfmod_import_resolver resolver, void *opaque, int64 *difference)
+get_hi_target_difference(const struct elfmod_context *context,
+                         uint32 target_index, const struct elfmod_rela *high,
+                         const uint64 section_addresses[ELFMOD_MAX_SECTIONS],
+                         elfmod_import_resolver resolver, void *opaque,
+                         int64 *difference)
 {
   uint64 symbol_value, place, target;
 
   if (target_index >= context->section_count ||
       add_u64(section_addresses[target_index], high->offset, &place) < 0 ||
-      resolve_symbol_value(context, high->symbol, section_addresses,
-                           resolver, opaque, &symbol_value) < 0 ||
+      resolve_symbol_value(context, high->symbol, section_addresses, resolver,
+                           opaque, &symbol_value) < 0 ||
       add_signed(symbol_value, high->addend, &target) < 0 ||
       relocation_target_in_section(context, high->symbol, target,
                                    section_addresses, 0) < 0 ||
@@ -1537,16 +1505,15 @@ patch_s_imm(uint32 instruction, int64 low)
   uint32 immediate = (uint32)low & 0xfff;
   uint32 high = (immediate >> 5) & 0x7f;
   uint32 low_bits = immediate & 0x1f;
-  return (instruction & ~((uint32)0xfe000f80)) |
-         (high << 25) | (low_bits << 7);
+  return (instruction & ~((uint32)0xfe000f80)) | (high << 25) | (low_bits << 7);
 }
 
 static int
-branch_target_difference(
-    const struct elfmod_context *context, uint32 target_index,
-    const struct elfmod_rela *relocation,
-    const uint64 section_addresses[ELFMOD_MAX_SECTIONS],
-    int64 *difference)
+branch_target_difference(const struct elfmod_context *context,
+                         uint32 target_index,
+                         const struct elfmod_rela *relocation,
+                         const uint64 section_addresses[ELFMOD_MAX_SECTIONS],
+                         int64 *difference)
 {
   struct elfmod_symbol_record symbol;
   uint64 target, place;
@@ -1556,12 +1523,12 @@ branch_target_difference(
       (symbol_type(&symbol) != STT_NOTYPE &&
        symbol_type(&symbol) != STT_FUNC) ||
       relocation->addend != 0 ||
-      resolve_symbol_value(context, relocation->symbol, section_addresses,
-                           0, 0, &target) < 0 ||
+      resolve_symbol_value(context, relocation->symbol, section_addresses, 0, 0,
+                           &target) < 0 ||
       relocation_target_in_section(context, relocation->symbol, target,
                                    section_addresses, 0) < 0 ||
-      add_u64(section_addresses[target_index], relocation->offset,
-              &place) < 0 ||
+      add_u64(section_addresses[target_index], relocation->offset, &place) <
+        0 ||
       signed_difference(target, place, difference) < 0)
     return -1;
   return 0;
@@ -1629,8 +1596,7 @@ write_instruction(const struct elfmod_context *context, uint32 target_index,
 {
   uint64 stage_offset;
 
-  if (staging == 0 ||
-      target_index >= context->section_count ||
+  if (staging == 0 || target_index >= context->section_count ||
       add_u64(context->sections[target_index].staging_offset, offset,
               &stage_offset) < 0 ||
       !range_ok(context->staging_size, stage_offset, 4))
@@ -1642,26 +1608,23 @@ write_instruction(const struct elfmod_context *context, uint32 target_index,
 static int
 apply_relocation(const struct elfmod_context *context,
                  uint32 relocation_section,
-                 const struct elfmod_rela *relocation,
-                 uchar *staging,
+                 const struct elfmod_rela *relocation, uchar *staging,
                  const uint64 section_addresses[ELFMOD_MAX_SECTIONS],
                  elfmod_import_resolver resolver, void *opaque)
 {
-  const struct elfmod_section *relsec =
-    &context->sections[relocation_section];
+  const struct elfmod_section *relsec = &context->sections[relocation_section];
   uint32 target_index = relsec->info;
   uint32 instruction, second, hi_section;
   struct elfmod_rela high;
   int64 difference, high_part, low_part;
   uint64 symbol_value, place, target;
 
-  if (relocation->type == R_RISCV_NONE ||
-      relocation->type == R_RISCV_RELAX)
+  if (relocation->type == R_RISCV_NONE || relocation->type == R_RISCV_RELAX)
     return 0;
 
   if (relocation->type == R_RISCV_PCREL_HI20) {
-    if (read_instruction(context, target_index, relocation->offset,
-                         staging, &instruction) < 0 ||
+    if (read_instruction(context, target_index, relocation->offset, staging,
+                         &instruction) < 0 ||
         get_hi_target_difference(context, target_index, relocation,
                                  section_addresses, resolver, opaque,
                                  &difference) < 0 ||
@@ -1669,20 +1632,20 @@ apply_relocation(const struct elfmod_context *context,
       return -1;
     (void)low_part;
     if (staging &&
-        write_instruction(context, target_index, relocation->offset,
-                          staging, patch_u_imm(instruction, high_part)) < 0)
+        write_instruction(context, target_index, relocation->offset, staging,
+                          patch_u_imm(instruction, high_part)) < 0)
       return -1;
     return 0;
   }
 
   if (relocation->type == R_RISCV_PCREL_LO12_I ||
       relocation->type == R_RISCV_PCREL_LO12_S) {
-    if (find_hi_for_low(context, target_index, relocation,
-                        &high, &hi_section) < 0 ||
-        read_instruction(context, target_index, relocation->offset,
-                         staging, &instruction) < 0 ||
-        read_instruction(context, target_index, high.offset,
-                         staging, &second) < 0 ||
+    if (find_hi_for_low(context, target_index, relocation, &high, &hi_section) <
+          0 ||
+        read_instruction(context, target_index, relocation->offset, staging,
+                         &instruction) < 0 ||
+        read_instruction(context, target_index, high.offset, staging, &second) <
+          0 ||
         get_hi_target_difference(context, target_index, &high,
                                  section_addresses, resolver, opaque,
                                  &difference) < 0 ||
@@ -1717,12 +1680,12 @@ apply_relocation(const struct elfmod_context *context,
       minimum = -4096;
       maximum = 4094;
       if (minimum > difference || difference > maximum ||
-          read_instruction(context, target_index, relocation->offset,
-                           staging, &instruction) < 0)
+          read_instruction(context, target_index, relocation->offset, staging,
+                           &instruction) < 0)
         return -1;
       if (staging &&
-          write_instruction(context, target_index, relocation->offset,
-                            staging, patch_b_imm(instruction, difference)) < 0)
+          write_instruction(context, target_index, relocation->offset, staging,
+                            patch_b_imm(instruction, difference)) < 0)
         return -1;
     } else {
       uint16 compressed;
@@ -1734,15 +1697,15 @@ apply_relocation(const struct elfmod_context *context,
         maximum = 2046;
       }
       if (minimum > difference || difference > maximum ||
-          read_halfword(context, target_index, relocation->offset,
-                        staging, &compressed) < 0)
+          read_halfword(context, target_index, relocation->offset, staging,
+                        &compressed) < 0)
         return -1;
       if (staging) {
         compressed = relocation->type == R_RISCV_RVC_BRANCH
                        ? patch_cb_imm(compressed, difference)
                        : patch_cj_imm(compressed, difference);
-        if (write_halfword(context, target_index, relocation->offset,
-                           staging, compressed) < 0)
+        if (write_halfword(context, target_index, relocation->offset, staging,
+                           compressed) < 0)
           return -1;
       }
     }
@@ -1750,25 +1713,23 @@ apply_relocation(const struct elfmod_context *context,
   }
 
   if (relocation->type == R_RISCV_CALL_PLT) {
-    if (read_instruction(context, target_index, relocation->offset,
-                         staging, &instruction) < 0 ||
-        read_instruction(context, target_index, relocation->offset + 4,
-                         staging, &second) < 0 ||
-        add_u64(section_addresses[target_index], relocation->offset,
-                &place) < 0 ||
-        resolve_symbol_value(context, relocation->symbol,
-                             section_addresses, resolver, opaque,
-                             &symbol_value) < 0 ||
+    if (read_instruction(context, target_index, relocation->offset, staging,
+                         &instruction) < 0 ||
+        read_instruction(context, target_index, relocation->offset + 4, staging,
+                         &second) < 0 ||
+        add_u64(section_addresses[target_index], relocation->offset, &place) <
+          0 ||
+        resolve_symbol_value(context, relocation->symbol, section_addresses,
+                             resolver, opaque, &symbol_value) < 0 ||
         add_signed(symbol_value, relocation->addend, &target) < 0 ||
         relocation_target_in_section(context, relocation->symbol, target,
                                      section_addresses, 1) < 0 ||
         signed_difference(target, place, &difference) < 0 ||
-        split_pcrel(difference, &high_part, &low_part) < 0 ||
-        (target & 1) != 0)
+        split_pcrel(difference, &high_part, &low_part) < 0 || (target & 1) != 0)
       return -1;
     if (staging) {
-      if (write_instruction(context, target_index, relocation->offset,
-                            staging, patch_u_imm(instruction, high_part)) < 0 ||
+      if (write_instruction(context, target_index, relocation->offset, staging,
+                            patch_u_imm(instruction, high_part)) < 0 ||
           write_instruction(context, target_index, relocation->offset + 4,
                             staging, patch_i_imm(second, low_part)) < 0)
         return -1;
@@ -1779,9 +1740,8 @@ apply_relocation(const struct elfmod_context *context,
 }
 
 static int
-validate_section_addresses(
-    const struct elfmod_context *context,
-    const uint64 section_addresses[ELFMOD_MAX_SECTIONS])
+validate_section_addresses(const struct elfmod_context *context,
+                           const uint64 section_addresses[ELFMOD_MAX_SECTIONS])
 {
   uint32 i, j;
 
@@ -1829,8 +1789,7 @@ zero_bytes(uchar *destination, uint64 length)
 }
 
 static int
-copy_allocated_sections(const struct elfmod_context *context,
-                        uchar *staging)
+copy_allocated_sections(const struct elfmod_context *context, uchar *staging)
 {
   uint32 i;
 
@@ -1867,10 +1826,10 @@ validate_imports(const struct elfmod_context *context,
     if (symbol.section_index != SHN_UNDEF)
       continue;
     if (resolver == 0 ||
-        name_at(context, context->symbol_string_index,
-                symbol.name_offset, &name, 0) < 0 ||
-        resolver(opaque, (const char *)name, symbol_type(&symbol),
-                 &address) != 1 ||
+        name_at(context, context->symbol_string_index, symbol.name_offset,
+                &name, 0) < 0 ||
+        resolver(opaque, (const char *)name, symbol_type(&symbol), &address) !=
+          1 ||
         address == 0)
       return -1;
   }
@@ -1889,8 +1848,8 @@ elfmod_relocate(const struct elfmod_context *context, uchar *staging,
 
   if (error)
     *error = ELFMOD_OK;
-  if (context == 0 || context->cookie != ELFMOD_COOKIE ||
-      context->file == 0 || staging == 0 || section_addresses == 0)
+  if (context == 0 || context->cookie != ELFMOD_COOKIE || context->file == 0 ||
+      staging == 0 || section_addresses == 0)
     return set_error(error, ELFMOD_E_ARGUMENT);
   uint64 file_begin, file_end, stage_begin, stage_end;
 
@@ -1915,9 +1874,8 @@ elfmod_relocate(const struct elfmod_context *context, uchar *staging,
       continue;
     for (j = 0; j < relsec->size / ELF_RELA_SIZE; j++) {
       if (read_relocation(context, i, j, &relocation) < 0 ||
-          apply_relocation(context, i, &relocation, 0,
-                           section_addresses, resolver,
-                           resolver_opaque) < 0)
+          apply_relocation(context, i, &relocation, 0, section_addresses,
+                           resolver, resolver_opaque) < 0)
         return set_error(error, ELFMOD_E_RANGE);
     }
   }
@@ -1932,9 +1890,8 @@ elfmod_relocate(const struct elfmod_context *context, uchar *staging,
       continue;
     for (j = 0; j < relsec->size / ELF_RELA_SIZE; j++) {
       if (read_relocation(context, i, j, &relocation) < 0 ||
-          apply_relocation(context, i, &relocation, staging,
-                           section_addresses, resolver,
-                           resolver_opaque) < 0) {
+          apply_relocation(context, i, &relocation, staging, section_addresses,
+                           resolver, resolver_opaque) < 0) {
         zero_bytes(staging, context->staging_size);
         return set_error(error, ELFMOD_E_RANGE);
       }
@@ -1945,8 +1902,7 @@ elfmod_relocate(const struct elfmod_context *context, uchar *staging,
 
 int
 elfmod_find_export(const struct elfmod_context *context, const char *name,
-                   struct elfmod_export *result,
-                   enum elfmod_error *error)
+                   struct elfmod_export *result, enum elfmod_error *error)
 {
   struct elfmod_symbol_record symbol;
   uint32 i;
@@ -1954,8 +1910,8 @@ elfmod_find_export(const struct elfmod_context *context, const char *name,
 
   if (error)
     *error = ELFMOD_OK;
-  if (context == 0 || context->cookie != ELFMOD_COOKIE ||
-      name == 0 || result == 0)
+  if (context == 0 || context->cookie != ELFMOD_COOKIE || name == 0 ||
+      result == 0)
     return set_error(error, ELFMOD_E_ARGUMENT);
   for (i = 1; i < context->symbol_count; i++) {
     const uchar *candidate;
@@ -1967,11 +1923,11 @@ elfmod_find_export(const struct elfmod_context *context, const char *name,
         symbol_type(&symbol) != STT_FUNC ||
         symbol.section_index >= context->section_count ||
         !(context->sections[symbol.section_index].flags & SHF_EXECINSTR) ||
-        symbol.size == 0 || symbol.value >=
-          context->sections[symbol.section_index].size)
+        symbol.size == 0 ||
+        symbol.value >= context->sections[symbol.section_index].size)
       continue;
-    if (name_at(context, context->symbol_string_index,
-                symbol.name_offset, &candidate, &length) < 0)
+    if (name_at(context, context->symbol_string_index, symbol.name_offset,
+                &candidate, &length) < 0)
       return set_error(error, ELFMOD_E_SYMBOL);
     while (name[wanted])
       wanted++;
@@ -1993,24 +1949,42 @@ const char *
 elfmod_error_string(enum elfmod_error error)
 {
   switch (error) {
-  case ELFMOD_OK: return "ok";
-  case ELFMOD_E_ARGUMENT: return "invalid argument or parser context";
-  case ELFMOD_E_LIMIT: return "configured input, section, symbol, or image limit exceeded";
-  case ELFMOD_E_HEADER: return "invalid or unsupported ELF header";
-  case ELFMOD_E_BOUNDS: return "file offset or size is out of bounds";
-  case ELFMOD_E_SECTION: return "malformed section table or section";
-  case ELFMOD_E_UNSUPPORTED_SECTION: return "unsupported ELF section type or flags";
-  case ELFMOD_E_ATTRIBUTE: return "unsupported or malformed RISC-V attributes";
-  case ELFMOD_E_SYMBOL: return "malformed or unsupported symbol";
-  case ELFMOD_E_IMPORT: return "undefined import is not in the explicit allowlist";
-  case ELFMOD_E_RELOCATION: return "malformed relocation record or target";
-  case ELFMOD_E_UNSUPPORTED_RELOCATION: return "unsupported RISC-V relocation type";
-  case ELFMOD_E_PAIR: return "malformed or unmatched PC-relative relocation pair";
-  case ELFMOD_E_INSTRUCTION: return "unexpected instruction encoding for relocation";
-  case ELFMOD_E_ALIGNMENT: return "invalid section, instruction, or placement alignment";
-  case ELFMOD_E_OVERFLOW: return "integer overflow in section layout";
-  case ELFMOD_E_RANGE: return "relocation target is out of range";
-  case ELFMOD_E_EXPORT: return "required module export is missing or ambiguous";
+  case ELFMOD_OK:
+    return "ok";
+  case ELFMOD_E_ARGUMENT:
+    return "invalid argument or parser context";
+  case ELFMOD_E_LIMIT:
+    return "configured input, section, symbol, or image limit exceeded";
+  case ELFMOD_E_HEADER:
+    return "invalid or unsupported ELF header";
+  case ELFMOD_E_BOUNDS:
+    return "file offset or size is out of bounds";
+  case ELFMOD_E_SECTION:
+    return "malformed section table or section";
+  case ELFMOD_E_UNSUPPORTED_SECTION:
+    return "unsupported ELF section type or flags";
+  case ELFMOD_E_ATTRIBUTE:
+    return "unsupported or malformed RISC-V attributes";
+  case ELFMOD_E_SYMBOL:
+    return "malformed or unsupported symbol";
+  case ELFMOD_E_IMPORT:
+    return "undefined import is not in the explicit allowlist";
+  case ELFMOD_E_RELOCATION:
+    return "malformed relocation record or target";
+  case ELFMOD_E_UNSUPPORTED_RELOCATION:
+    return "unsupported RISC-V relocation type";
+  case ELFMOD_E_PAIR:
+    return "malformed or unmatched PC-relative relocation pair";
+  case ELFMOD_E_INSTRUCTION:
+    return "unexpected instruction encoding for relocation";
+  case ELFMOD_E_ALIGNMENT:
+    return "invalid section, instruction, or placement alignment";
+  case ELFMOD_E_OVERFLOW:
+    return "integer overflow in section layout";
+  case ELFMOD_E_RANGE:
+    return "relocation target is out of range";
+  case ELFMOD_E_EXPORT:
+    return "required module export is missing or ambiguous";
   }
   return "unknown ELF module error";
 }

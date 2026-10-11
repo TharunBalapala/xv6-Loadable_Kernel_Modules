@@ -28,7 +28,7 @@ int sync(void);
 int modload(const char *);
 int modunload(const char *);
 int modlist(void);
-int modcall(const char *, int, const char *const []);
+int modcall(const char *, int, const char *const[]);
 
 // ulib.c
 int stat(const char *, struct stat *);

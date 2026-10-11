@@ -104,8 +104,7 @@ int elfmod_relocate(const struct elfmod_context *context, uchar *staging,
                     enum elfmod_error *error);
 
 int elfmod_find_export(const struct elfmod_context *context, const char *name,
-                       struct elfmod_export *result,
-                       enum elfmod_error *error);
+                       struct elfmod_export *result, enum elfmod_error *error);
 
 const char *elfmod_error_string(enum elfmod_error error);
 

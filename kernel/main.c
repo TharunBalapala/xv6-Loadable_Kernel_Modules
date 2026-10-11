@@ -27,14 +27,14 @@ main()
     printk("\n");
     printk("xv6 kernel is booting\n");
     printk("\n");
-    kinit();            // physical page allocator
-    kvminit();          // create kernel page table
-    kvminithart();      // turn on paging
-    procinit();         // process table
-    trapinit();         // trap vectors
-    trapinithart();     // install kernel trap vector
+    kinit();        // physical page allocator
+    kvminit();      // create kernel page table
+    kvminithart();  // turn on paging
+    procinit();     // process table
+    trapinit();     // trap vectors
+    trapinithart(); // install kernel trap vector
 #ifdef MODULE_MEMTEST
-    modmemtest();       // test executable page permissions on this hart
+    modmemtest(); // test executable page permissions on this hart
 #endif
     plicinit();         // set up interrupt controller
     plicinithart();     // ask PLIC for device interrupts
@@ -45,7 +45,7 @@ main()
 #ifdef MODULES
     module_system_init();
 #endif
-    userinit();         // first user process
+    userinit(); // first user process
 
     __atomic_store_n(&started, 1, __ATOMIC_RELEASE);
   } else {
