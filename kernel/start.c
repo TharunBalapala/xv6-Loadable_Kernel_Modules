@@ -14,6 +14,12 @@ __attribute__((aligned(16))) char stack0[4096 * NCPU];
 void
 start()
 {
+#ifdef MODULES
+  // Secondary harts stay in M-mode; module fences are local in this build.
+  if (r_mhartid() != 0)
+    for (;;)
+      asm volatile("wfi");
+#endif
   // set M Previous Privilege mode to Supervisor, for mret.
   unsigned long x = r_mstatus();
   x &= ~MSTATUS_MPP_MASK;

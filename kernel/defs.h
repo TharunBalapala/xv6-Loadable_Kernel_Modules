@@ -104,6 +104,18 @@ int             either_copyout(int user_dst, uint64 dst, void *src, uint64 len);
 int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
 
+// module loader and its system-call interface
+void            module_hart_online(int);
+void            module_system_init(void);
+int             module_load(char*);
+int             module_unload(char*);
+int             module_list(void);
+int             module_call(char*, int, const char *const[]);
+uint64          sys_modload(void);
+uint64          sys_modunload(void);
+uint64          sys_modlist(void);
+uint64          sys_modcall(void);
+
 // swtch.S
 void            swtch(struct context*, struct context*);
 

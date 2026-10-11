@@ -43,3 +43,7 @@ entry("sbrk");
 entry("pause");
 entry("uptime");
 entry("sync");
+entry("modload");
+entry("modunload");
+entry("modlist");
+entry("modcall");

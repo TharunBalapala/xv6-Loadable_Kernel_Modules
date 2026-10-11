@@ -103,6 +103,12 @@ extern uint64 sys_link(void);
 extern uint64 sys_mkdir(void);
 extern uint64 sys_close(void);
 extern uint64 sys_sync(void);
+#ifdef MODULES
+extern uint64 sys_modload(void);
+extern uint64 sys_modunload(void);
+extern uint64 sys_modlist(void);
+extern uint64 sys_modcall(void);
+#endif
 
 // An array mapping syscall numbers from syscall.h
 // to the function that handles the system call.
@@ -130,6 +136,12 @@ static uint64 (*syscalls[])(void) = {
   [SYS_mkdir]   = sys_mkdir,
   [SYS_close]   = sys_close,
   [SYS_sync]    = sys_sync,
+#ifdef MODULES
+  [SYS_modload]   = sys_modload,
+  [SYS_modunload] = sys_modunload,
+  [SYS_modlist]   = sys_modlist,
+  [SYS_modcall]   = sys_modcall,
+#endif
   // clang-format on
 };
 

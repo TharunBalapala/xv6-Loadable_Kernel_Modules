@@ -21,3 +21,7 @@
 #define SYS_mkdir  20
 #define SYS_close  21
 #define SYS_sync   22
+#define SYS_modload   23
+#define SYS_modunload 24
+#define SYS_modlist   25
+#define SYS_modcall   26

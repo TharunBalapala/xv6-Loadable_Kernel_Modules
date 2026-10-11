@@ -30,6 +30,14 @@ OBJS = \
   $K/plic.o \
   $K/virtio_disk.o
 
+ifeq ($(MODULE_MEMTEST),1)
+OBJS += $K/modmemtest.o
+endif
+
+ifeq ($(MODULES),1)
+OBJS += $K/elfmod.o $K/module.o $K/sysmodule.o
+endif
+
 # riscv64-unknown-elf- or riscv64-linux-gnu-
 # perhaps in /opt/riscv/bin
 #TOOLPREFIX = 
@@ -78,6 +86,19 @@ CFLAGS += -fno-builtin-free
 CFLAGS += -fno-builtin-memcpy -Wno-main
 CFLAGS += -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf
 CFLAGS += -I.
+
+ifeq ($(MODULE_MEMTEST),1)
+CFLAGS += -DMODULE_MEMTEST
+endif
+ifeq ($(MODULE_MEMTEST_WRITE_FAULT),1)
+CFLAGS += -DMODULE_MEMTEST_WRITE_FAULT
+endif
+ifeq ($(MODULE_MEMTEST_NX_FAULT),1)
+CFLAGS += -DMODULE_MEMTEST_NX_FAULT
+endif
+ifeq ($(MODULES),1)
+CFLAGS += -DMODULES
+endif
 CFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
 
 # Disable PIE when possible (for Ubuntu 16.10 toolchain)
@@ -151,8 +172,18 @@ UPROGS=\
 	$U/_dorphan\
 	$U/_sync\
 
-fs.img: mkfs/mkfs README $(UPROGS)
-	mkfs/mkfs fs.img README $(UPROGS)
+MODULE_OBJECTS =
+ifeq ($(MODULES),1)
+UPROGS += $U/_modctl
+MODULE_OBJECTS += hello.o
+endif
+
+hello.o: experiments/hello_module.c kernel/module.h
+	$(CC) $(CFLAGS) -mabi=lp64d -msmall-data-limit=0 -g0 \
+	  -fno-asynchronous-unwind-tables -fno-unwind-tables -c -o $@ $<
+
+fs.img: mkfs/mkfs README $(UPROGS) $(MODULE_OBJECTS)
+	mkfs/mkfs fs.img README $(UPROGS) $(MODULE_OBJECTS)
 
 -include kernel/*.d user/*.d
 
@@ -180,6 +211,9 @@ QEMUOPTS += -drive file=fs.img,if=none,format=raw,id=x0
 QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
 
 qemu: check-qemu-version $K/kernel fs.img
+ifeq ($(MODULES),1)
+	@if [ "$(CPUS)" != "1" ]; then echo "MODULES=1 requires CPUS=1"; exit 1; fi
+endif
 	$(QEMU) $(QEMUOPTS)
 
 .gdbinit: .gdbinit.tmpl-riscv
