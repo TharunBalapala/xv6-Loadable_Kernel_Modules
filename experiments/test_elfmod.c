@@ -761,6 +761,44 @@ load_primary_fixture(const char *path)
   return 0;
 }
 
+
+static void
+test_module_object(const char *path)
+{
+  uchar bytes[ELFMOD_MAX_FILE_SIZE];
+  uint64 length, addresses[ELFMOD_MAX_SECTIONS];
+  struct elfmod_context context;
+  struct elfmod_export exported;
+  enum elfmod_error error = ELFMOD_OK;
+  int result;
+  const char *required[] = {"module_init", "module_command", "module_exit"};
+  uint i;
+
+  if (read_file(path, bytes, &length) < 0) {
+    fprintf(stderr, "FAIL: could not read module object: %s\n", path);
+    tests_failed++;
+    return;
+  }
+  result = elfmod_parse(&context, bytes, length, &error);
+  check(result == 0, "feature module passes strict ELF validation");
+  if (result < 0) {
+    fprintf(stderr, "  %s: %s\n", path, elfmod_error_string(error));
+    return;
+  }
+  for (i = 0; i < sizeof(required) / sizeof(required[0]); i++)
+    check(elfmod_find_export(&context, required[i], &exported, &error) == 0,
+          "feature module exports required entry point");
+  section_addresses(&context, addresses, TEST_TEXT_BASE,
+                    TEST_TEXT_BASE + 0x1000, TEST_TEXT_BASE + 0x2000);
+  memset(staging, 0, sizeof(staging));
+  result = elfmod_relocate(&context, staging, sizeof(staging), addresses,
+                           0, 0, &error);
+  check(result == 0, "feature module relocates without kernel imports");
+  if (result < 0)
+    fprintf(stderr, "  %s: relocation: %s\n", path,
+            elfmod_error_string(error));
+}
+
 int
 main(int argc, char **argv)
 {
@@ -768,7 +806,7 @@ main(int argc, char **argv)
   uint64 reloff;
   uint32 store_type = 0;
 
-  if (argc != 4) {
+  if (argc < 4) {
     fprintf(stderr, "usage: %s clean-hello.o store-fixture.o old-hello.o\n",
             argv[0]);
     return 2;
@@ -795,6 +833,12 @@ main(int argc, char **argv)
   }
   if (!store_type)
     fprintf(stderr, "FAIL: S-type relocation fixture unavailable\n");
+
+  {
+    int i;
+    for (i = 4; i < argc; i++)
+      test_module_object(argv[i]);
+  }
 
   if (tests_failed) {
     fprintf(stderr, "%d test(s) failed\n", tests_failed);

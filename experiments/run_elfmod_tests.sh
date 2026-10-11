@@ -26,7 +26,7 @@ module_flags=(
   -fno-builtin-exit -fno-builtin-malloc -fno-builtin-putc
   -fno-builtin-free -fno-builtin-memcpy -fno-builtin-printf
   -fno-builtin-fprintf -fno-builtin-vprintf
-  -fno-stack-protector -fno-pie -no-pie -msmall-data-limit=0 -I.
+  -DMODULES -DMODULE_TESTS -fno-jump-tables -fno-stack-protector -fno-pie -no-pie -msmall-data-limit=0 -I.
   "-ffile-prefix-map=$repo_root=."
 )
 
@@ -36,6 +36,20 @@ module_flags=(
 
 "$riscv_cc" "${module_flags[@]}" \
   -c -o "$tmp_dir/store-reloc.o" experiments/elfmod_store.S
+
+
+module_objects=()
+for module in sysmon procmon klogger fail; do
+  output="$tmp_dir/$module.o"
+  "$riscv_cc" "${module_flags[@]}" -fno-jump-tables -mno-relax -g0 \
+    -fno-asynchronous-unwind-tables -fno-unwind-tables \
+    -c -o "$output" "experiments/${module}_module.c"
+  module_objects+=("$output")
+done
+"$riscv_cc" "${module_flags[@]}" -fno-jump-tables -mno-relax -g0 \
+  -fno-asynchronous-unwind-tables -fno-unwind-tables \
+  -c -o "$tmp_dir/busytest.o" experiments/busy_module.c
+module_objects+=("$tmp_dir/busytest.o")
 
 # Compile the exact parser source for the kernel target without linking it into
 # the baseline kernel image. This is a freestanding portability check.
@@ -53,4 +67,4 @@ fi
   -o "$tmp_dir/test-elfmod" experiments/test_elfmod.c kernel/elfmod.c
 
 "$tmp_dir/test-elfmod" "$tmp_dir/hello-min.o" \
-  "$tmp_dir/store-reloc.o" "$old_object"
+  "$tmp_dir/store-reloc.o" "$old_object" "${module_objects[@]}"

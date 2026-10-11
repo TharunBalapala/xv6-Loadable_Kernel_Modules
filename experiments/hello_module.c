@@ -1,16 +1,16 @@
 #include "kernel/module.h"
 
-static const struct module_api_v1 *module_api;
+static const struct module_api_v2 *module_api;
 
 int
-module_init(const struct module_api_v1 *api)
+module_init(const struct module_api_v2 *api)
 {
-  if (api == 0 || api->abi_version != MODULE_API_V1 ||
+  if (api == 0 || api->abi_version != MODULE_API_V2 ||
       api->struct_size < sizeof(*api) ||
       (api->capabilities & MODULE_CAP_PRINT) == 0 || api->print == 0)
     return -1;
   module_api = api;
-  module_api->print("hello module initialized through API v1");
+  module_api->print("hello module initialized through API v2");
   return 0;
 }
 
@@ -34,4 +34,5 @@ module_exit(void)
 {
   if (module_api != 0)
     module_api->print("hello module exiting");
+  module_api = 0;
 }

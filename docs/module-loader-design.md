@@ -401,3 +401,66 @@ After alias removal and permission changes the loader performs local sfence.vma 
 - Active-call rejection and UNLOADING checks are implemented, but a concurrent busy-unload race test remains outstanding. Dependencies are unsupported and untested.
 
 Remaining risks: privileged modules are not sandboxed; module code must remain integer-only because xv6 does not save floating-point state; the three feature modules may need additional relocations; the accepted sections and API need broader tests; intermediate page-table pages allocated under the shared kernel page table are not reclaimed by uvmunmap; and SMP synchronization is absent. Keep the two-week scope to a one-hart ET_REL validation, relocation, load, init, invocation, list, and restricted unload demonstration. Defer SMP, dependencies, callbacks/workers, arbitrary imports, sysmon, procmon, and klogger until review and further lifecycle testing.
+
+## Completed module implementation and one-hart integration
+
+This section records the completed feature modules and the runtime checks performed after the earlier prototype notes. It supersedes earlier statements that sysmon, procmon, and klogger were deferred. The system remains an educational, single-hart prototype; it is not an SMP-safe production loader or a module sandbox.
+
+### Versioned module API v2
+
+The loader now passes `struct module_api_v2` from `kernel/module.h` to each module's `module_init`. The table carries `abi_version`, `struct_size`, capability bits, and function pointers. It provides:
+
+- A bounded console print service. Messages must terminate within 192 bytes.
+- A system snapshot with uptime ticks, allocator page capacity/free-page count, process-slot count, and counts by process state.
+- A process snapshot containing pid, state, and a copied 16-byte name for each non-unused process.
+- A kernel log service with append, chronological snapshot, and clear operations.
+
+No module imports arbitrary kernel symbols. The objects have no undefined symbols; internal helper functions use the supported local CALL_PLT relocations. The kernel checks process states under each process lock, reads uptime under tickslock, and counts allocator free pages under kmem.lock. These are individually protected snapshots, not one globally atomic snapshot. The process table is not locked while module output is printed.
+
+`module_init`, `module_command`, and `module_exit` are found by those exact ELF symbol names. Init receives the API table; command receives argc/argv through `modctl run` (the prior `call` spelling remains an alias); exit has no arguments. The manager increments active_calls before entering command code and decrements it afterward. Unload first marks the module UNLOADING, which rejects new calls, invokes exit, removes mappings, restores allocator aliases and permissions, then frees pages. The existing one-hart gate remains mandatory.
+
+The v2 interface has no callback registration, workers, interrupt handlers, dependency imports, or inter-module symbol resolution. The dependency counter continues to be zero because module dependencies are outside this implementation.
+
+### Feature modules and object compatibility
+
+The filesystem now contains separate ET_REL objects for `hello`, `sysmon`, `procmon`, and `klogger`. The Makefile builds them with the kernel's `-march=rv64gc` and `-mcmodel=medany`, explicit `-mabi=lp64d`, `-msmall-data-limit=0`, and no debug/unwind sections. The three feature objects additionally use `-fno-jump-tables -mno-relax`. This avoids compiler-generated ADD32/SUB32 jump-table relocations and relaxation markers with addends outside the parser's strict accepted form. The parser itself was not weakened. The hello fixture keeps the normal assembler relaxation records so its RELAX validation remains covered.
+
+Verified with `riscv64-linux-gnu-readelf` and `nm`: each feature object is ELF64, little-endian, ET_REL, EM_RISCV, and has no undefined symbols. All three currently use the same relocation types:
+
+- `R_RISCV_PCREL_HI20` and paired `R_RISCV_PCREL_LO12_I/S` for local code/data addresses.
+- `R_RISCV_CALL_PLT` for calls to local module helper functions.
+- `R_RISCV_BRANCH`, `R_RISCV_RVC_BRANCH`, and `R_RISCV_RVC_JUMP` for local control flow.
+
+The expanded host test runner compiles each production module and both test fixtures with reproducible flags, validates the required exports, and runs the strict parser and relocator with no import resolver. All those objects pass. Existing malformed ELF, bad relocation type, malformed HI20/LO12 pair, range, alignment, and debug/unwind rejection cases remain covered. A small-object result does not prove compatibility for arbitrary future module sources; keep checking the relocations and section layout of each new object.
+
+### Module behavior
+
+- `sysmon` prints uptime, total/free allocator pages, active processes, and process slots.
+- `procmon` snapshots and prints pid, state, and name for each allocated process slot.
+- `klogger` accepts `add INFO|WARN|ERROR message...`, `show`, and `clear`. The kernel ring holds 32 records with 63-byte maximum messages, sequence number, tick, and level. On overflow it overwrites the oldest entry and increments a saturating dropped counter. Clear resets entries and dropped count while preserving the monotonic sequence.
+- `hello` now uses API v2 consistently and no longer imports printk.
+
+The test-only `fail.o` and `busytest.o` objects are installed only with `MODULE_TESTS=1`. The test API hooks are compiled only in that configuration. fail.o returns an init error to verify rollback and confirm exit is not called after failed init. busytest invokes a test-only unload attempt from inside its active command, then attempts a new call from exit while the slot is UNLOADING. These are deterministic lifecycle checks; neither test hook is present in a normal `MODULES=1` build.
+
+### Runtime and memory verification
+
+The end-to-end harness `experiments/run_module_qemu_tests.py` boots QEMU with `-smp 1` and checks missing/malformed objects, unknown calls, duplicate loads, hello init/call/exit, all three feature modules, failed-init cleanup, active-call unload rejection, call rejection during UNLOADING, simultaneous registration of the three modules, and final empty-registry state. It adds 35 records after clearing klogger, verifies the 32 retained records are entries 003–034 and that dropped=3, then verifies clear returns entries=0 and dropped=0. The harness completed successfully.
+
+Executable placement and permission handling remain as in the verified single-hart prototype: allocate ordinary kalloc pages, populate them through RW/NX direct-map aliases before publication, remove those aliases, map text RX, rodata R/NX, and data/BSS RW/NX, then perform local sfence.vma and fence.i. Unload removes the module mapping, fences, restores RW/NX allocator aliases, and only then calls kfree. Uncertain teardown still quarantines pages. No general RAM mapping was made executable.
+
+### Verification status and remaining risks
+
+Verified in this pass:
+- The expanded host parser/relocation suite passes, including feature objects. The ASan/UBSan invocation also passed the parser suite; the subsequent ELF audit command in that combined shell invocation had a quoting error, so its output is not used as evidence. A separate readelf/nm audit confirmed the object headers, relocation type sets, and empty undefined-symbol lists.
+- `make -B MODULES=1 MODULE_TESTS=1 CPUS=1 kernel/kernel fs.img` completed, with the repository's existing linker warning that the kernel ELF has an RWX LOAD segment. xv6's runtime PTE mapping policy remains independently RX for kernel text and RW/NX for allocator RAM.
+- The one-hart QEMU integration harness passed actual runtime load, initialization, invocation, listing, unload, failed-init rollback, busy-unload rejection, and klogger wrap/clear checks. The production-mode run passed with test hooks omitted.
+- The default non-module build completed, and \`experiments/run_usertests_qemu.py\` ran the standard \`usertests -q\` suite to \`ALL TESTS PASSED\` on one QEMU hart. Its expected user page-fault probes printed trap diagnostics before succeeding.
+
+Not verified or supported:
+- No multi-hart module loading, calls, TLB shootdown, or remote instruction-cache fencing. The build parks secondary harts in M-mode and refuses module operations unless exactly one hart is online. Demonstrations must use `CPUS=1`.
+- Module code is privileged kernel code and is not isolated from the kernel. Malicious or buggy modules can corrupt kernel state.
+- There is no asynchronous callback/worker/interrupt API, dependency loading, general symbol resolver, concurrent module command service, or unload of executing code from multiple harts.
+- New feature code may require new relocation types or larger parser limits; inspect each object's full ELF metadata before accepting it.
+- The test-only API changes the API table size at compile time. Test modules and the test kernel must be built with the same `MODULE_TESTS=1` setting. Normal builds omit those hooks.
+
+The next practical step is a review of this implementation and a production-mode `MODULES=1 CPUS=1` demonstration without test hooks, followed by the normal non-module xv6 regression build. No SMP or security claim should be made.

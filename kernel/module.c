@@ -48,16 +48,108 @@ static uchar module_file[MODULE_FILE_MAX];
 static uchar module_staging[ELFMOD_MAX_IMAGE_SIZE];
 extern pagetable_t kernel_pagetable;
 
+extern struct proc proc[NPROC];
+
 static int
 module_print(const char *message)
 {
+  char bounded[MODULE_PRINT_MAX];
+  uint i;
+
   if (message == 0)
     return -1;
-  return printk("%s\n", (char *)message);
+  for (i = 0; i < sizeof(bounded) - 1 && message[i] != 0; i++)
+    bounded[i] = message[i];
+  if (message[i] != 0)
+    return -1;
+  bounded[i] = 0;
+  return printk("%s\n", bounded);
 }
 
-static const struct module_api_v1 api_v1 = {
-  MODULE_API_V1, sizeof(struct module_api_v1), MODULE_CAP_PRINT, module_print
+static int
+module_system_snapshot(struct module_system_stats *result)
+{
+  struct proc *p;
+  uint state;
+
+  if (result == 0)
+    return -1;
+  memset(result, 0, sizeof(*result));
+  result->proc_slots = NPROC;
+  kalloc_stats(&result->total_pages, &result->free_pages);
+  acquire(&tickslock);
+  result->uptime_ticks = ticks;
+  release(&tickslock);
+  for (p = proc; p < &proc[NPROC]; p++) {
+    acquire(&p->lock);
+    state = (uint)p->state;
+    release(&p->lock);
+    if (state >= MODULE_PROC_STATE_COUNT)
+      return -1;
+    result->state_count[state]++;
+    if (state != MODULE_PROC_UNUSED)
+      result->active_processes++;
+  }
+  return 0;
+}
+
+static int
+module_process_snapshot(struct module_process_info *entries, uint32 capacity,
+                        uint32 *count)
+{
+  struct proc *p;
+  uint32 n = 0, state;
+
+  if (entries == 0 || count == 0)
+    return -1;
+  for (p = proc; p < &proc[NPROC]; p++) {
+    acquire(&p->lock);
+    state = (uint32)p->state;
+    if (state != MODULE_PROC_UNUSED) {
+      if (n >= capacity) {
+        release(&p->lock);
+        return -1;
+      }
+      entries[n].pid = p->pid;
+      entries[n].state = state;
+      safestrcpy(entries[n].name, p->name, sizeof(entries[n].name));
+      n++;
+    }
+    release(&p->lock);
+  }
+  *count = n;
+  return 0;
+}
+
+#ifdef MODULE_TESTS
+static int
+module_test_try_unload(const char *name)
+{
+  return module_unload((char *)name);
+}
+
+static int
+module_test_try_call(const char *name)
+{
+  return module_call((char *)name, 0, 0);
+}
+#endif
+
+static const struct module_api_v2 api_v2 = {
+  .abi_version = MODULE_API_V2,
+  .struct_size = sizeof(struct module_api_v2),
+  .capabilities = MODULE_CAP_PRINT | MODULE_CAP_SYSTEM |
+                  MODULE_CAP_PROCESSES | MODULE_CAP_LOG,
+  .print = module_print,
+  .system_snapshot = module_system_snapshot,
+  .process_snapshot = module_process_snapshot,
+  .log_append = modulelog_append,
+  .log_snapshot = modulelog_snapshot,
+  .log_clear = modulelog_clear,
+#ifdef MODULE_TESTS
+  .test_try_unload = module_test_try_unload,
+  .test_try_call = module_test_try_call,
+#endif
 };
 
 void
@@ -73,6 +165,7 @@ module_system_init(void)
 {
   initlock(&module_lock, "modules");
   initsleeplock(&module_operation_lock, "module operation");
+  modulelog_init();
 }
 
 static int
@@ -445,10 +538,19 @@ module_load(char *path)
     return -1;
   acquiresleep(&module_operation_lock);
   slot = module_reserve(name);
-  if (slot == 0)
+  if (slot == 0) {
+    int duplicate;
+    acquire(&module_lock);
+    duplicate = module_find_locked(name) != 0;
+    release(&module_lock);
+    printk("module %s: %s\n", name,
+           duplicate ? "already loaded" : "registry full");
     goto done;
-  if (module_read_file(path, &file_length) < 0)
+  }
+  if (module_read_file(path, &file_length) < 0) {
+    printk("module %s: cannot read object file\n", name);
     goto fail;
+  }
   if (elfmod_parse(&ctx, module_file, file_length, &error) < 0) {
     printk("module %s: ELF rejected: %s\n", name,
            (char *)elfmod_error_string(error));
@@ -494,7 +596,7 @@ module_load(char *path)
   init_entry = (module_init_fn)
     (section_addresses[init_export.section_index] +
      init_export.section_offset);
-  if (init_entry(&api_v1) != 0) {
+  if (init_entry(&api_v2) != 0) {
     printk("module %s: initialization failed\n", name);
     goto fail;
   }
@@ -532,7 +634,19 @@ module_unload(char *requested_name)
   slot = module_find_locked(name);
   if (slot == 0 || slot->state != MODULE_LIVE ||
       slot->active_calls != 0 || slot->dependent_refs != 0) {
+    uint32 active = slot ? slot->active_calls : 0;
+    uint32 dependent = slot ? slot->dependent_refs : 0;
+    enum module_state state = slot ? slot->state : MODULE_FREE;
     release(&module_lock);
+    if (state == MODULE_FREE)
+      printk("module %s: not loaded\n", name);
+    else if (active != 0)
+      printk("module %s: busy with %d active call(s)\n", name, active);
+    else if (dependent != 0)
+      printk("module %s: still required by %d module(s)\n", name,
+             dependent);
+    else
+      printk("module %s: not in live state\n", name);
     releasesleep(&module_operation_lock);
     return -1;
   }
@@ -573,6 +687,7 @@ module_call(char *requested_name, int argc, const char *const argv[])
   if (slot == 0 || slot->state != MODULE_LIVE ||
       slot->active_calls == ~(uint32)0) {
     release(&module_lock);
+    printk("module %s: not live\n", name);
     return -1;
   }
   slot->active_calls++;

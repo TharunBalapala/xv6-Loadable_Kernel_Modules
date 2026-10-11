@@ -80,3 +80,22 @@ kalloc(void)
     memset((char *)r, 5, PGSIZE); // fill with junk
   return (void *)r;
 }
+
+// Return allocator capacity and current freelist size without exposing the
+// allocator's private list to callers.
+void
+kalloc_stats(uint64 *total_pages, uint64 *free_pages)
+{
+  struct run *r;
+  uint64 free_count = 0;
+
+  acquire(&kmem.lock);
+  for (r = kmem.freelist; r != 0; r = r->next)
+    free_count++;
+  release(&kmem.lock);
+
+  if (total_pages)
+    *total_pages = (PHYSTOP - PGROUNDUP((uint64)end)) / PGSIZE;
+  if (free_pages)
+    *free_pages = free_count;
+}

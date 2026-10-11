@@ -35,7 +35,7 @@ OBJS += $K/modmemtest.o
 endif
 
 ifeq ($(MODULES),1)
-OBJS += $K/elfmod.o $K/module.o $K/sysmodule.o
+OBJS += $K/elfmod.o $K/module.o $K/modulelog.o $K/sysmodule.o
 endif
 
 # riscv64-unknown-elf- or riscv64-linux-gnu-
@@ -98,6 +98,12 @@ CFLAGS += -DMODULE_MEMTEST_NX_FAULT
 endif
 ifeq ($(MODULES),1)
 CFLAGS += -DMODULES
+endif
+ifeq ($(MODULE_TESTS),1)
+ifneq ($(MODULES),1)
+$(error MODULE_TESTS=1 requires MODULES=1)
+endif
+CFLAGS += -DMODULE_TESTS
 endif
 CFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
 
@@ -175,12 +181,33 @@ UPROGS=\
 MODULE_OBJECTS =
 ifeq ($(MODULES),1)
 UPROGS += $U/_modctl
-MODULE_OBJECTS += hello.o
+MODULE_OBJECTS += hello.o sysmon.o procmon.o klogger.o
+ifeq ($(MODULE_TESTS),1)
+MODULE_OBJECTS += fail.o busytest.o
+endif
 endif
 
+MODULE_CFLAGS = $(CFLAGS) -mabi=lp64d -msmall-data-limit=0 -g0 \
+	-fno-asynchronous-unwind-tables -fno-unwind-tables
+FEATURE_MODULE_CFLAGS = $(MODULE_CFLAGS) -fno-jump-tables -mno-relax
+
 hello.o: experiments/hello_module.c kernel/module.h
-	$(CC) $(CFLAGS) -mabi=lp64d -msmall-data-limit=0 -g0 \
-	  -fno-asynchronous-unwind-tables -fno-unwind-tables -c -o $@ $<
+	$(CC) $(MODULE_CFLAGS) -c -o $@ $<
+
+sysmon.o: experiments/sysmon_module.c kernel/module.h experiments/module_helpers.h
+	$(CC) $(FEATURE_MODULE_CFLAGS) -c -o $@ $<
+
+procmon.o: experiments/procmon_module.c kernel/module.h experiments/module_helpers.h
+	$(CC) $(FEATURE_MODULE_CFLAGS) -c -o $@ $<
+
+klogger.o: experiments/klogger_module.c kernel/module.h experiments/module_helpers.h
+	$(CC) $(FEATURE_MODULE_CFLAGS) -c -o $@ $<
+
+fail.o: experiments/fail_module.c kernel/module.h
+	$(CC) $(FEATURE_MODULE_CFLAGS) -c -o $@ $<
+
+busytest.o: experiments/busy_module.c kernel/module.h
+	$(CC) $(FEATURE_MODULE_CFLAGS) -c -o $@ $<
 
 fs.img: mkfs/mkfs README $(UPROGS) $(MODULE_OBJECTS)
 	mkfs/mkfs fs.img README $(UPROGS) $(MODULE_OBJECTS)
@@ -190,6 +217,8 @@ fs.img: mkfs/mkfs README $(UPROGS) $(MODULE_OBJECTS)
 clean: 
 	rm -f *.tex *.dvi *.idx *.aux *.log *.ind *.ilg \
 	*/*.o */*.d */*.asm */*.sym \
+	hello.o sysmon.o procmon.o klogger.o fail.o busytest.o \
+	hello.d sysmon.d procmon.d klogger.d fail.d busytest.d \
 	$K/kernel fs.img \
 	mkfs/mkfs .gdbinit \
         $U/usys.S \

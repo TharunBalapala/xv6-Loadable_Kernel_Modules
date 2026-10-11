@@ -5,6 +5,7 @@ struct file;
 struct inode;
 struct pipe;
 struct proc;
+struct module_log_snapshot;
 struct spinlock;
 struct sleeplock;
 struct stat;
@@ -60,6 +61,7 @@ void            ireclaim(int);
 void*           kalloc(void);
 void            kfree(void *);
 void            kinit(void);
+void            kalloc_stats(uint64*, uint64*);
 
 // log.c
 void            initlog(int, struct superblock*);
@@ -111,6 +113,10 @@ int             module_load(char*);
 int             module_unload(char*);
 int             module_list(void);
 int             module_call(char*, int, const char *const[]);
+void            modulelog_init(void);
+int             modulelog_append(uint32, const char*);
+int             modulelog_snapshot(struct module_log_snapshot*);
+int             modulelog_clear(void);
 uint64          sys_modload(void);
 uint64          sys_modunload(void);
 uint64          sys_modlist(void);
